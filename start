@@ -1,0 +1,1264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Lion Runner - African Savannah Endless Runner</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@600;800;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: #1a0b2e;
+            color: #ffffff;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+
+        .font-game {
+            font-family: 'Fredoka One', cursive;
+        }
+
+        /* Glassmorphism overlays */
+        .glass-panel {
+            background: rgba(28, 16, 45, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 2px solid rgba(255, 183, 77, 0.25);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+
+        .btn-custom {
+            transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 6px 0 #b45309, 0 10px 15px rgba(0,0,0,0.4);
+        }
+
+        .btn-custom:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 0 #b45309, 0 12px 20px rgba(0,0,0,0.5);
+        }
+
+        .btn-custom:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 #b45309, 0 4px 8px rgba(0,0,0,0.3);
+        }
+
+        .btn-icon {
+            transition: transform 0.2s ease, background-color 0.2s ease;
+        }
+
+        .btn-icon:hover {
+            transform: scale(1.1);
+        }
+
+        .btn-icon:active {
+            transform: scale(0.95);
+        }
+
+        /* Canvas wrapper setup for crisp aspect ratio rendering */
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #0f051d;
+        }
+
+        canvas {
+            display: block;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+            border-radius: 12px;
+            max-width: 100%;
+            max-height: 100%;
+        }
+
+        /* Screen Shake Effect */
+        .shake {
+            animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+        }
+
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-2px, -1px, 0); }
+            20%, 80% { transform: translate3d(4px, 2px, 0); }
+            30%, 50%, 70% { transform: translate3d(-6px, -4px, 0); }
+            40%, 60% { transform: translate3d(6px, 4px, 0); }
+        }
+    </style>
+</head>
+<body class="w-screen h-screen overflow-hidden flex items-center justify-center select-none">
+ <div id="game-container">
+        <!-- Main Canvas -->
+        <canvas id="gameCanvas" width="1200" height="600"></canvas>
+  
+        <!-- Top Header Navigation & Live HUD -->
+        <div class="absolute top-4 left-4 right-4 flex justify-between items-center pointer-events-none z-10 px-2 sm:px-6">
+            <!-- Brand & Info -->
+            <div class="flex items-center space-x-3 pointer-events-auto">
+            
+ <div style="background-color:white;" class="px-4 py-2 rounded-2xl shadow-lg border-2 border-amber-300/40">
+<a href="https://webbistan.com/" target="_blank">
+<img src="https://webbistan.com/wp-content/uploads/2025/06/Webbistan-Digital-Marketing-Agency-logo.png" alt="Webbistan.com" width="200px">
+</a>
+</div>
+ 
+ 
+                <div class="bg-gradient-to-r from-amber-500 to-orange-600 text-white px-4 py-2 rounded-2xl shadow-lg border-2 border-amber-300/40 flex items-center space-x-2">
+                    <span class="text-2xl">🦁</span>
+                    <span class="font-game text-xl tracking-wide uppercase text-shadow">Lion Runner</span>
+                </div>
+            </div>
+
+            <!-- Top Right HUD (Scores & Utility Buttons) -->
+            <div class="flex items-center space-x-4 pointer-events-auto">
+                <!-- Scores Display -->
+                <div class="glass-panel px-4 py-2 rounded-2xl flex items-center space-x-6 text-amber-300 font-game">
+                    <div class="text-left">
+                        <div class="text-xs uppercase text-amber-400/70 tracking-wider">High Score</div>
+                        <div id="hud-highscore" class="text-lg text-white">0</div>
+                    </div>
+                    <div class="h-8 w-px bg-amber-500/30"></div>
+                    <div class="text-left">
+                        <div class="text-xs uppercase text-amber-400/70 tracking-wider">Score</div>
+                        <div id="hud-score" class="text-2xl text-amber-400">0</div>
+                    </div>
+                </div>
+
+                <!-- Control Quick Buttons -->
+                <div class="flex items-center space-x-2">
+                    <button id="btn-audio" class="btn-icon glass-panel w-11 h-11 rounded-xl flex items-center justify-center text-xl text-amber-300 hover:text-white" title="Toggle Sound (M)">
+                        🔊
+                    </button>
+                    <button id="btn-pause" class="btn-icon glass-panel w-11 h-11 rounded-xl flex items-center justify-center text-xl text-amber-300 hover:text-white" title="Pause Game (P)">
+                        ⏸️
+                    </button>
+                    <button id="btn-fullscreen" class="btn-icon glass-panel w-11 h-11 rounded-xl flex items-center justify-center text-xl text-amber-300 hover:text-white" title="Toggle Fullscreen (F)">
+                        ⛶
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls Helper Toast (Bottom Bar) -->
+        <div id="controls-bar" class="absolute bottom-4 left-1/2 transform -translate-x-1/2 pointer-events-none z-10 hidden sm:flex items-center space-x-6 glass-panel px-6 py-2.5 rounded-full text-xs font-semibold text-amber-200/80">
+            <span class="flex items-center"><kbd class="bg-amber-500/20 px-2 py-0.5 rounded border border-amber-400/30 text-white mr-1.5 font-mono">SPACE</kbd> or <kbd class="bg-amber-500/20 px-2 py-0.5 rounded border border-amber-400/30 text-white ml-1.5 mr-1.5 font-mono">↑</kbd> Jump</span>
+            <span class="w-1.5 h-1.5 rounded-full bg-amber-500/40"></span>
+            <span class="flex items-center"><kbd class="bg-amber-500/20 px-2 py-0.5 rounded border border-amber-400/30 text-white mr-1.5 font-mono">P</kbd> Pause</span>
+            <span class="w-1.5 h-1.5 rounded-full bg-amber-500/40"></span>
+            <span class="flex items-center"><kbd class="bg-amber-500/20 px-2 py-0.5 rounded border border-amber-400/30 text-white mr-1.5 font-mono">M</kbd> Mute</span>
+        </div>
+
+        <!-- START SCREEN OVERLAY -->
+        <div id="start-overlay" class="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/60 backdrop-blur-md transition-opacity duration-300">
+            <div class="glass-panel p-8 sm:p-12 rounded-3xl max-w-lg w-11/12 text-center relative border border-amber-500/30">
+                <div class="w-24 h-24 mx-auto mb-4 bg-gradient-to-tr from-amber-500 to-orange-500 rounded-full flex items-center justify-center text-5xl shadow-2xl border-4 border-amber-300/40 animate-bounce">
+                    🦁
+                </div>
+                <h1 class="font-game text-4xl sm:text-5xl text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-orange-400 to-amber-200 mb-2">
+                    LION RUNNER
+                </h1>
+                <p class="text-amber-100/80 mb-8 text-sm sm:text-base font-medium">
+                    Sprint across the African savannah, leap over rocks, foxes, snakes, wild pigs & thorn trees!
+                </p>
+
+                <button id="btn-start" class="btn-custom w-full py-4 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white font-game text-xl tracking-wider uppercase rounded-2xl cursor-pointer">
+                    Press Space to Start
+                </button>
+
+                <div class="mt-6 flex justify-center space-x-4 text-xs text-amber-200/60">
+                    <span>Tap Screen or Press Space to Jump</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- PAUSE SCREEN OVERLAY -->
+        <div id="pause-overlay" class="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/70 backdrop-blur-md hidden">
+            <div class="glass-panel p-8 rounded-3xl text-center max-w-sm w-11/12">
+                <div class="text-5xl mb-3">⏸️</div>
+                <h2 class="font-game text-3xl text-amber-300 mb-2">GAME PAUSED</h2>
+                <p class="text-amber-100/70 text-sm mb-6">Take a breather! The savannah awaits.</p>
+                <button id="btn-resume" class="btn-custom w-full py-3.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-game text-lg uppercase rounded-xl">
+                    Resume Game
+                </button>
+            </div>
+        </div>
+
+        <!-- GAME OVER OVERLAY -->
+        <div id="gameover-overlay" class="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/80 backdrop-blur-lg hidden transition-all duration-300">
+            <div class="glass-panel p-8 sm:p-10 rounded-3xl max-w-md w-11/12 text-center relative border border-red-500/30">
+                <div class="text-5xl mb-2">💥</div>
+                <h2 class="font-game text-4xl text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-amber-400 mb-4">
+                    GAME OVER
+                </h2>
+
+                <!-- Final Stats Card -->
+                <div class="bg-black/40 rounded-2xl p-4 mb-6 space-y-3 border border-amber-500/10">
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-amber-200/70 font-semibold uppercase">Final Score</span>
+                        <span id="go-score" class="font-game text-2xl text-amber-300">0</span>
+                    </div>
+                    <div class="h-px bg-amber-500/20"></div>
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-amber-200/70 font-semibold uppercase">High Score</span>
+                        <span id="go-highscore" class="font-game text-2xl text-white">0</span>
+                    </div>
+                </div>
+
+                <button id="btn-restart" class="btn-custom w-full py-4 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white font-game text-xl tracking-wider uppercase rounded-2xl cursor-pointer mb-3">
+                    Play Again
+                </button>
+                <p class="text-xs text-amber-200/50">Press Space Bar to Restart</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* ==========================================================================
+           LION RUNNER - ENTIRE GAME ENGINE & RENDERER IN VANILLA JS
+           ========================================================================== */
+
+        // --- Web Audio API Synthesizer Sound Manager ---
+        class SoundManager {
+            constructor() {
+                this.ctx = null;
+                this.muted = false;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    if (AudioContext) {
+                        this.ctx = new AudioContext();
+                    }
+                }
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            toggleMute() {
+                this.muted = !this.muted;
+                return this.muted;
+            }
+
+            playJump() {
+                if (this.muted || !this.ctx) return;
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(160, this.ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(450, this.ctx.currentTime + 0.15);
+
+                    gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + 0.15);
+                } catch(e) {}
+            }
+
+            playScore() {
+                if (this.muted || !this.ctx) return;
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(523.25, this.ctx.currentTime); // C5
+                    osc.frequency.setValueAtTime(659.25, this.ctx.currentTime + 0.08); // E5
+
+                    gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.2);
+
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + 0.2);
+                } catch(e) {}
+            }
+
+            playCollision() {
+                if (this.muted || !this.ctx) return;
+                try {
+                    // Descending Sawtooth sweep + Low Rumble
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(220, this.ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(40, this.ctx.currentTime + 0.35);
+
+                    gain.gain.setValueAtTime(0.4, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.35);
+
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + 0.35);
+                } catch(e) {}
+            }
+        }
+
+        class Particle {
+            constructor(x, y, vx, vy, color, size, maxLife) {
+                this.x = x;
+                this.y = y;
+                this.vx = vx;
+                this.vy = vy;
+                this.color = color;
+                this.size = size;
+                this.life = maxLife;
+                this.maxLife = maxLife;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.size = Math.max(0, this.size - 0.05);
+                this.life--;
+            }
+
+            draw(ctx) {
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, this.life / this.maxLife);
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        class BackgroundLayer {
+            constructor(speedFactor, drawCallback) {
+                this.speedFactor = speedFactor;
+                this.drawCallback = drawCallback;
+                this.x = 0;
+            }
+
+            update(gameSpeed) {
+                this.x = (this.x - gameSpeed * this.speedFactor) % 1200;
+            }
+
+            draw(ctx) {
+                ctx.save();
+                ctx.translate(this.x, 0);
+                this.drawCallback(ctx);
+                ctx.translate(1200, 0);
+                this.drawCallback(ctx);
+                ctx.restore();
+            }
+        }
+
+        class Lion {
+            constructor(groundY) {
+                this.width = 90;
+                this.height = 70;
+                this.x = 120; // 20% from left on 1200 canvas width
+                this.groundY = groundY;
+                this.y = groundY - this.height;
+                this.vy = 0;
+                this.gravity = 0.9;
+                this.jumpPower = -17;
+                this.isGrounded = true;
+                this.animTimer = 0;
+                this.dustTimer = 0;
+            }
+
+            reset() {
+                this.y = this.groundY - this.height;
+                this.vy = 0;
+                this.isGrounded = true;
+                this.animTimer = 0;
+            }
+
+            jump(soundManager) {
+                if (this.isGrounded) {
+                    this.vy = this.jumpPower;
+                    this.isGrounded = false;
+                    soundManager.playJump();
+                }
+            }
+
+            update(particles) {
+                // Apply Gravity & Movement
+                this.vy += this.gravity;
+                this.y += this.vy;
+
+                // Ground Collision check
+                if (this.y >= this.groundY - this.height) {
+                    if (!this.isGrounded) {
+                        // Just landed: Spawn dust particles
+                        for (let i = 0; i < 8; i++) {
+                            particles.push(new Particle(
+                                this.x + 20 + Math.random() * 40,
+                                this.groundY - 5,
+                                (Math.random() - 0.5) * 4,
+                                -Math.random() * 2,
+                                '#d97706',
+                                3 + Math.random() * 4,
+                                20
+                            ));
+                        }
+                    }
+                    this.y = this.groundY - this.height;
+                    this.vy = 0;
+                    this.isGrounded = true;
+                }
+
+                this.animTimer += 0.2;
+
+                // Running dust emitter
+                if (this.isGrounded) {
+                    this.dustTimer++;
+                    if (this.dustTimer % 5 === 0) {
+                        particles.push(new Particle(
+                            this.x + 15,
+                            this.groundY - 5,
+                            -2 - Math.random() * 2,
+                            -Math.random() * 1.5,
+                            '#f59e0b',
+                            2.5 + Math.random() * 2,
+                            15
+                        ));
+                    }
+                }
+            }
+
+            // High-quality programmatic Vector Drawing for Cartoon Lion
+            draw(ctx) {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+
+                const legCycle = Math.sin(this.animTimer * 1.5);
+
+                // --- 1. Tail ---
+                ctx.strokeStyle = '#d97706';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.moveTo(10, 35);
+                const tailFlex = this.isGrounded ? Math.sin(this.animTimer) * 10 : -15;
+                ctx.quadraticCurveTo(-15, 20 + tailFlex, -20, 10 + tailFlex);
+                ctx.stroke();
+
+                // Tail Tuft
+                ctx.fillStyle = '#78350f';
+                ctx.beginPath();
+                ctx.arc(-22, 10 + tailFlex, 6, 0, Math.PI * 2);
+                ctx.fill();
+
+                // --- 2. Back Legs ---
+                ctx.fillStyle = '#b45309';
+                if (this.isGrounded) {
+                    // Back Leg 1
+                    ctx.beginPath();
+                    ctx.ellipse(25 + legCycle * 12, 58, 7, 14, legCycle * 0.4, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Front Leg 1
+                    ctx.beginPath();
+                    ctx.ellipse(70 - legCycle * 12, 58, 7, 14, -legCycle * 0.4, 0, Math.PI * 2);
+                    ctx.fill();
+                } else {
+                    // Tucked legs during jump
+                    ctx.beginPath();
+                    ctx.ellipse(25, 52, 7, 12, Math.PI / 4, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.ellipse(70, 52, 7, 12, -Math.PI / 4, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // --- 3. Body ---
+                ctx.fillStyle = '#f59e0b'; // Golden yellow body
+                ctx.beginPath();
+                ctx.roundRect(18, 20, 58, 38, 18);
+                ctx.fill();
+
+                // --- 4. Front Legs ---
+                ctx.fillStyle = '#f59e0b';
+                if (this.isGrounded) {
+                    // Back Leg 2
+                    ctx.beginPath();
+                    ctx.ellipse(25 - legCycle * 12, 60, 7.5, 14, -legCycle * 0.4, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Front Leg 2
+                    ctx.beginPath();
+                    ctx.ellipse(70 + legCycle * 12, 60, 7.5, 14, legCycle * 0.4, 0, Math.PI * 2);
+                    ctx.fill();
+                } else {
+                    ctx.beginPath();
+                    ctx.ellipse(20, 50, 7.5, 13, -Math.PI / 3, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.ellipse(75, 50, 7.5, 13, Math.PI / 3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // Paws
+                ctx.fillStyle = '#d97706';
+                if (this.isGrounded) {
+                    ctx.beginPath();
+                    ctx.arc(25 - legCycle * 12, 69, 5, 0, Math.PI * 2);
+                    ctx.arc(70 + legCycle * 12, 69, 5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // --- 5. Big Fluffy Lion Mane (Layered Circles) ---
+                const maneX = 66;
+                const maneY = 26;
+                ctx.fillStyle = '#78350f'; // Dark orange-brown mane
+                const manePetals = 8;
+                for (let i = 0; i < manePetals; i++) {
+                    const angle = (i / manePetals) * Math.PI * 2;
+                    const mx = maneX + Math.cos(angle) * 18;
+                    const my = maneY + Math.sin(angle) * 18;
+                    ctx.beginPath();
+                    ctx.arc(mx, my, 13, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // Inner mane highlight layer
+                ctx.fillStyle = '#9a3412';
+                for (let i = 0; i < manePetals; i++) {
+                    const angle = (i / manePetals) * Math.PI * 2 + 0.2;
+                    const mx = maneX + Math.cos(angle) * 12;
+                    const my = maneY + Math.sin(angle) * 12;
+                    ctx.beginPath();
+                    ctx.arc(mx, my, 10, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // --- 6. Head ---
+                ctx.fillStyle = '#fbbf24';
+                ctx.beginPath();
+                ctx.arc(maneX, maneY, 16, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Ears
+                ctx.fillStyle = '#d97706';
+                ctx.beginPath();
+                ctx.arc(maneX - 10, maneY - 14, 6, 0, Math.PI * 2);
+                ctx.arc(maneX + 8, maneY - 14, 6, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Muzzle & Snout
+                ctx.fillStyle = '#fef3c7';
+                ctx.beginPath();
+                ctx.ellipse(maneX + 8, maneY + 4, 8, 6, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Nose
+                ctx.fillStyle = '#451a03';
+                ctx.beginPath();
+                ctx.polygon = ctx.arc(maneX + 11, maneY + 2, 3.5, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Eye
+                ctx.fillStyle = '#1e1b4b';
+                ctx.beginPath();
+                ctx.arc(maneX + 5, maneY - 4, 3, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Eye catchlight
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(maneX + 6, maneY - 5, 1, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
+            }
+
+            // Bounding box for accurate collision detection with fair inset padding
+            getHitbox() {
+                return {
+                    x: this.x + 18,
+                    y: this.y + 12,
+                    width: this.width - 28,
+                    height: this.height - 18
+                };
+            }
+        }
+
+        class Obstacle {
+            constructor(x, groundY, type) {
+                this.x = x;
+                this.groundY = groundY;
+                this.type = type; // 'stone', 'fox', 'snake', 'pig', 'tree'
+                this.animTimer = Math.random() * 10;
+                this.cleared = false;
+
+                // Set type-specific dimensions & properties
+                switch (type) {
+                    case 'stone':
+                        this.width = 45;
+                        this.height = 40;
+                        this.rotation = 0;
+                        break;
+                    case 'fox':
+                        this.width = 55;
+                        this.height = 35;
+                        break;
+                    case 'snake':
+                        this.width = 50;
+                        this.height = 25;
+                        break;
+                    case 'pig':
+                        this.width = 60;
+                        this.height = 42;
+                        break;
+                    case 'tree':
+                        this.width = 50;
+                        this.height = 70;
+                        break;
+                }
+                this.y = groundY - this.height;
+            }
+
+            update(speed) {
+                this.x -= speed;
+                this.animTimer += 0.25;
+
+                if (this.type === 'stone') {
+                    this.rotation -= speed * 0.05;
+                }
+            }
+
+            draw(ctx) {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+
+                switch (this.type) {
+                    case 'stone':
+                        this.drawStone(ctx);
+                        break;
+                    case 'fox':
+                        this.drawFox(ctx);
+                        break;
+                    case 'snake':
+                        this.drawSnake(ctx);
+                        break;
+                    case 'pig':
+                        this.drawPig(ctx);
+                        break;
+                    case 'tree':
+                        this.drawTree(ctx);
+                        break;
+                }
+
+                ctx.restore();
+            }
+
+            // --- Vector Sprite 1: Rolling Stone ---
+            drawStone(ctx) {
+                ctx.save();
+                ctx.translate(22, 20);
+                ctx.rotate(this.rotation);
+
+                // Rock Body
+                ctx.fillStyle = '#78716c';
+                ctx.beginPath();
+                ctx.arc(0, 0, 20, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Rock Shading & Details
+                ctx.fillStyle = '#57534e';
+                ctx.beginPath();
+                ctx.arc(-4, -4, 14, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Cracks
+                ctx.strokeStyle = '#292524';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(-10, -5);
+                ctx.lineTo(2, 4);
+                ctx.lineTo(12, -2);
+                ctx.stroke();
+
+                ctx.restore();
+            }
+
+            // --- Vector Sprite 2: Running Fox ---
+            drawFox(ctx) {
+                const leg = Math.sin(this.animTimer * 1.8) * 10;
+                // Tail
+                ctx.fillStyle = '#ea580c';
+                ctx.beginPath();
+                ctx.ellipse(48, 15, 12, 6, Math.PI / 6, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.ellipse(55, 18, 4, 3, Math.PI / 6, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Legs
+                ctx.fillStyle = '#9a3412';
+                ctx.fillRect(12 + leg, 25, 4, 10);
+                ctx.fillRect(38 - leg, 25, 4, 10);
+
+                // Body
+                ctx.fillStyle = '#ea580c';
+                ctx.beginPath();
+                ctx.roundRect(10, 10, 36, 20, 8);
+                ctx.fill();
+
+                // White Chest
+                ctx.fillStyle = '#f8fafc';
+                ctx.beginPath();
+                ctx.ellipse(14, 20, 6, 8, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Head
+                ctx.fillStyle = '#ea580c';
+                ctx.beginPath();
+                ctx.polygon = ctx.arc(10, 12, 10, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Snout
+                ctx.beginPath();
+                ctx.moveTo(10, 16);
+                ctx.lineTo(0, 15);
+                ctx.lineTo(8, 8);
+                ctx.closePath();
+                ctx.fill();
+
+                // Ears & Eye
+                ctx.fillStyle = '#431407';
+                ctx.beginPath();
+                ctx.arc(12, 4, 4, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#000';
+                ctx.fillRect(2, 14, 2.5, 2.5);
+                ctx.fillRect(8, 10, 2, 2);
+            }
+
+            // --- Vector Sprite 3: Slithering Snake ---
+            drawSnake(ctx) {
+                const wave = Math.sin(this.animTimer * 1.5) * 4;
+
+                // Tongue
+                ctx.strokeStyle = '#ef4444';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(4, 15);
+                ctx.lineTo(-4, 15 + wave * 0.5);
+                ctx.stroke();
+
+                // Body S-curve
+                ctx.strokeStyle = '#15803d';
+                ctx.lineWidth = 12;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(10, 15);
+                ctx.quadraticCurveTo(25, 15 + wave * 2, 35, 15);
+                ctx.quadraticCurveTo(42, 15 - wave * 2, 48, 15);
+                ctx.stroke();
+
+                // Pattern spots
+                ctx.fillStyle = '#facc15';
+                ctx.beginPath();
+                ctx.arc(20, 15 + wave, 2.5, 0, Math.PI * 2);
+                ctx.arc(36, 15 - wave, 2.5, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Head & Eye
+                ctx.fillStyle = '#166534';
+                ctx.beginPath();
+                ctx.arc(10, 14, 7, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#fef08a';
+                ctx.beginPath();
+                ctx.arc(8, 12, 2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#000';
+                ctx.fillRect(7.5, 11.5, 1, 1);
+            }
+
+            // --- Vector Sprite 4: Wild Pig (Warthog) ---
+            drawPig(ctx) {
+                const leg = Math.sin(this.animTimer * 2) * 8;
+
+                // Legs
+                ctx.fillStyle = '#292524';
+                ctx.fillRect(15 + leg, 30, 6, 12);
+                ctx.fillRect(40 - leg, 30, 6, 12);
+
+                // Body
+                ctx.fillStyle = '#57534e';
+                ctx.beginPath();
+                ctx.roundRect(10, 10, 42, 26, 10);
+                ctx.fill();
+
+                // Mane ridge
+                ctx.fillStyle = '#1c1917';
+                ctx.fillRect(18, 5, 25, 6);
+
+                // Head
+                ctx.fillStyle = '#44403c';
+                ctx.beginPath();
+                ctx.arc(12, 20, 11, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Tusk
+                ctx.strokeStyle = '#f8fafc';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(10, 24);
+                ctx.quadraticCurveTo(2, 24, 4, 16);
+                ctx.stroke();
+
+                // Eye
+                ctx.fillStyle = '#fef08a';
+                ctx.beginPath();
+                ctx.arc(14, 16, 2.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // --- Vector Sprite 5: Acacia Thorn Tree ---
+            drawTree(ctx) {
+                // Trunk
+                ctx.fillStyle = '#78350f';
+                ctx.beginPath();
+                ctx.moveTo(20, 70);
+                ctx.lineTo(24, 30);
+                ctx.lineTo(10, 15);
+                ctx.lineTo(16, 15);
+                ctx.lineTo(27, 28);
+                ctx.lineTo(38, 12);
+                ctx.lineTo(44, 14);
+                ctx.lineTo(30, 32);
+                ctx.lineTo(32, 70);
+                ctx.closePath();
+                ctx.fill();
+
+                // Canopy tops
+                ctx.fillStyle = '#15803d';
+                ctx.beginPath();
+                ctx.ellipse(10, 12, 18, 8, 0, 0, Math.PI * 2);
+                ctx.ellipse(40, 10, 20, 9, 0, 0, Math.PI * 2);
+                ctx.ellipse(25, 18, 22, 10, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#166534';
+                ctx.beginPath();
+                ctx.ellipse(25, 22, 18, 6, 0, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            getHitbox() {
+                // Fair collision padding per obstacle type
+                let padX = 6;
+                let padY = 6;
+                if (this.type === 'stone') { padX = 6; padY = 6; }
+                if (this.type === 'snake') { padY = 4; }
+
+                return {
+                    x: this.x + padX,
+                    y: this.y + padY,
+                    width: this.width - padX * 2,
+                    height: this.height - padY * 2
+                };
+            }
+        }
+
+        class Game {
+            constructor() {
+                this.canvas = document.getElementById('gameCanvas');
+                this.ctx = this.canvas.getContext('2d');
+
+                // Canvas Dimensions
+                this.width = 1200;
+                this.height = 600;
+                this.groundY = 500;
+
+                // Game States: 'START', 'RUNNING', 'PAUSED', 'GAMEOVER'
+                this.state = 'START';
+
+                // Game Speed & Scaling
+                this.baseSpeed = 7.5;
+                this.speed = this.baseSpeed;
+                this.maxSpeed = 16;
+                this.startTime = 0;
+
+                // Score System
+                this.score = 0;
+                this.highScore = parseInt(localStorage.getItem('lion_runner_highscore') || '0', 10);
+
+                // Entities
+                this.lion = new Lion(this.groundY);
+                this.obstacles = [];
+                this.particles = [];
+                this.birds = [];
+
+                // Obstacle Spawner memory
+                this.lastObstacleType = null;
+                this.repeatCount = 0;
+                this.obstacleTimer = 0;
+                this.minObstacleGap = 90; // frames
+
+                // Managers
+                this.sound = new SoundManager();
+
+                // Parallax Background Layers
+                this.initBackground();
+
+                // Setup Listeners
+                this.bindEvents();
+
+                // Sync HUD
+                this.updateHUD();
+
+                // Start Master Loop
+                requestAnimationFrame(this.loop.bind(this));
+            }
+
+            initBackground() {
+                // Sky & Parallax Setup
+                this.layers = [
+                    // Layer 1: Clouds (Slowest)
+                    new BackgroundLayer(0.1, (ctx) => {
+                        ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+                        ctx.beginPath();
+                        ctx.ellipse(200, 100, 50, 18, 0, 0, Math.PI * 2);
+                        ctx.ellipse(230, 90, 35, 15, 0, 0, Math.PI * 2);
+                        ctx.ellipse(750, 130, 60, 20, 0, 0, Math.PI * 2);
+                        ctx.ellipse(780, 120, 40, 16, 0, 0, Math.PI * 2);
+                        ctx.fill();
+                    }),
+                    // Layer 2: Distant Savannah Mountains
+                    new BackgroundLayer(0.25, (ctx) => {
+                        ctx.fillStyle = '#4c1d95'; // Purple sunset silhouette
+                        ctx.beginPath();
+                        ctx.moveTo(0, 500);
+                        ctx.lineTo(150, 380);
+                        ctx.lineTo(350, 500);
+                        ctx.lineTo(500, 420);
+                        ctx.lineTo(700, 500);
+                        ctx.lineTo(950, 360);
+                        ctx.lineTo(1200, 500);
+                        ctx.closePath();
+                        ctx.fill();
+                    }),
+                    // Layer 3: Acacia Trees & Hills
+                    new BackgroundLayer(0.5, (ctx) => {
+                        ctx.fillStyle = '#7c2d12';
+                        // Low hills
+                        ctx.beginPath();
+                        ctx.ellipse(300, 500, 300, 80, 0, 0, Math.PI * 2);
+                        ctx.ellipse(900, 500, 400, 90, 0, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        // Tree Silhouettes
+                        ctx.fillStyle = '#451a03';
+                        ctx.fillRect(450, 420, 8, 80);
+                        ctx.beginPath();
+                        ctx.ellipse(454, 415, 40, 12, 0, 0, Math.PI * 2);
+                        ctx.fill();
+                    })
+                ];
+            }
+
+            bindEvents() {
+                // Keyboard Input
+                window.addEventListener('keydown', (e) => {
+                    if (e.code === 'Space' || e.code === 'ArrowUp') {
+                        e.preventDefault();
+                        this.handleJumpOrStart();
+                    } else if (e.code === 'KeyP') {
+                        this.togglePause();
+                    } else if (e.code === 'KeyM') {
+                        this.toggleMute();
+                    } else if (e.code === 'KeyF') {
+                        this.toggleFullscreen();
+                    }
+                });
+
+                // Touch & Click Input for Canvas
+                const triggerJump = (e) => {
+                    if (e.target.tagName !== 'BUTTON') {
+                        this.handleJumpOrStart();
+                    }
+                };
+
+                this.canvas.addEventListener('mousedown', triggerJump);
+                this.canvas.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    triggerJump(e);
+                }, { passive: false });
+
+                // UI Button Listeners
+                document.getElementById('btn-start').addEventListener('click', () => this.startGame());
+                document.getElementById('btn-restart').addEventListener('click', () => this.startGame());
+                document.getElementById('btn-resume').addEventListener('click', () => this.togglePause());
+
+                document.getElementById('btn-audio').addEventListener('click', () => this.toggleMute());
+                document.getElementById('btn-pause').addEventListener('click', () => this.togglePause());
+                document.getElementById('btn-fullscreen').addEventListener('click', () => this.toggleFullscreen());
+            }
+
+            handleJumpOrStart() {
+                this.sound.init();
+                if (this.state === 'START' || this.state === 'GAMEOVER') {
+                    this.startGame();
+                } else if (this.state === 'RUNNING') {
+                    this.lion.jump(this.sound);
+                }
+            }
+
+            togglePause() {
+                if (this.state === 'RUNNING') {
+                    this.state = 'PAUSED';
+                    document.getElementById('pause-overlay').classList.remove('hidden');
+                } else if (this.state === 'PAUSED') {
+                    this.state = 'RUNNING';
+                    document.getElementById('pause-overlay').classList.add('hidden');
+                }
+            }
+
+            toggleMute() {
+                this.sound.init();
+                const isMuted = this.sound.toggleMute();
+                document.getElementById('btn-audio').innerText = isMuted ? '🔇' : '🔊';
+            }
+
+            toggleFullscreen() {
+                if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen().catch(() => {});
+                } else {
+                    if (document.exitFullscreen) document.exitFullscreen();
+                }
+            }
+
+            startGame() {
+                this.sound.init();
+                this.state = 'RUNNING';
+                this.speed = this.baseSpeed;
+                this.score = 0;
+                this.startTime = Date.now();
+                this.obstacles = [];
+                this.particles = [];
+                this.lion.reset();
+
+                // UI updates
+                document.getElementById('start-overlay').classList.add('hidden');
+                document.getElementById('gameover-overlay').classList.add('hidden');
+                document.getElementById('pause-overlay').classList.add('hidden');
+                document.getElementById('controls-bar').classList.remove('hidden');
+
+                this.updateHUD();
+            }
+
+            gameOver() {
+                this.state = 'GAMEOVER';
+                this.sound.playCollision();
+
+                // Trigger Screen Shake
+                const container = document.getElementById('game-container');
+                container.classList.add('shake');
+                setTimeout(() => container.classList.remove('shake'), 400);
+
+                // Update Highscore
+                if (this.score > this.highScore) {
+                    this.highScore = this.score;
+                    localStorage.setItem('lion_runner_highscore', this.highScore.toString());
+                }
+
+                // Show Game Over Dialog
+                document.getElementById('go-score').innerText = this.score;
+                document.getElementById('go-highscore').innerText = this.highScore;
+                document.getElementById('gameover-overlay').classList.remove('hidden');
+
+                this.updateHUD();
+            }
+
+            updateHUD() {
+                document.getElementById('hud-score').innerText = this.score;
+                document.getElementById('hud-highscore').innerText = this.highScore;
+            }
+
+            spawnObstacle() {
+                const types = ['stone', 'fox', 'snake', 'pig', 'tree'];
+                let chosenType = types[Math.floor(Math.random() * types.length)];
+
+                // Prevent more than 2 consecutive repeats
+                if (chosenType === this.lastObstacleType) {
+                    this.repeatCount++;
+                    if (this.repeatCount >= 2) {
+                        const filtered = types.filter(t => t !== chosenType);
+                        chosenType = filtered[Math.floor(Math.random() * filtered.length)];
+                        this.repeatCount = 1;
+                    }
+                } else {
+                    this.repeatCount = 1;
+                }
+                this.lastObstacleType = chosenType;
+
+                this.obstacles.push(new Obstacle(this.width + 50, this.groundY, chosenType));
+            }
+
+            spawnBird() {
+                if (Math.random() < 0.008 && this.birds.length < 3) {
+                    this.birds.push({
+                        x: this.width + 30,
+                        y: 80 + Math.random() * 140,
+                        speed: 2 + Math.random() * 2,
+                        wingAnim: 0
+                    });
+                }
+            }
+
+            update() {
+                if (this.state !== 'RUNNING') return;
+
+                // 1. Difficulty Ramp Every 30 seconds
+                const elapsedSec = (Date.now() - this.startTime) / 1000;
+                this.speed = Math.min(this.maxSpeed, this.baseSpeed + Math.floor(elapsedSec / 30) * 0.85);
+
+                // 2. Parallax Layers Update
+                this.layers.forEach(layer => layer.update(this.speed));
+
+                // 3. Lion Physics & Animation
+                this.lion.update(this.particles);
+
+                // 4. Particles Update
+                for (let i = this.particles.length - 1; i >= 0; i--) {
+                    this.particles[i].update();
+                    if (this.particles[i].life <= 0) {
+                        this.particles.splice(i, 1);
+                    }
+                }
+
+                // 5. Background Birds Update
+                this.spawnBird();
+                for (let i = this.birds.length - 1; i >= 0; i--) {
+                    const b = this.birds[i];
+                    b.x -= b.speed + this.speed * 0.2;
+                    b.wingAnim += 0.2;
+                    if (b.x < -40) this.birds.splice(i, 1);
+                }
+
+                // 6. Obstacle Spawning Logic
+                this.obstacleTimer++;
+                const dynamicGap = this.minObstacleGap + Math.floor(Math.random() * 60) - (this.speed * 2);
+                if (this.obstacleTimer > Math.max(55, dynamicGap)) {
+                    this.spawnObstacle();
+                    this.obstacleTimer = 0;
+                }
+
+                // 7. Obstacle Movement, Score Chime, Collision Check
+                const lionHitbox = this.lion.getHitbox();
+
+                for (let i = this.obstacles.length - 1; i >= 0; i--) {
+                    const obs = this.obstacles[i];
+                    obs.update(this.speed);
+
+                    // Check if Lion cleared obstacle (+10 score)
+                    if (!obs.cleared && obs.x + obs.width < this.lion.x) {
+                        obs.cleared = true;
+                        this.score += 10;
+                        this.sound.playScore();
+                        this.updateHUD();
+                    }
+
+                    // AABB Bounding Box Collision
+                    const obsHitbox = obs.getHitbox();
+                    if (
+                        lionHitbox.x < obsHitbox.x + obsHitbox.width &&
+                        lionHitbox.x + lionHitbox.width > obsHitbox.x &&
+                        lionHitbox.y < obsHitbox.y + obsHitbox.height &&
+                        lionHitbox.y + lionHitbox.height > obsHitbox.y
+                    ) {
+                        this.gameOver();
+                        return;
+                    }
+
+                    // Remove offscreen obstacles
+                    if (obs.x < -100) {
+                        this.obstacles.splice(i, 1);
+                    }
+                }
+            }
+
+            render() {
+                // Clear Canvas
+                this.ctx.clearRect(0, 0, this.width, this.height);
+
+                // Sky Gradient (African Sunset)
+                const skyGrad = this.ctx.createLinearGradient(0, 0, 0, this.groundY);
+                skyGrad.addColorStop(0, '#2e1065');   // Deep violet top
+                skyGrad.addColorStop(0.4, '#7c2d12'); // Rich burnt orange
+                skyGrad.addColorStop(0.7, '#ea580c'); // Vibrant orange
+                skyGrad.addColorStop(1, '#fde047');   // Golden sunset yellow bottom
+                this.ctx.fillStyle = skyGrad;
+                this.ctx.fillRect(0, 0, this.width, this.groundY);
+
+                // Setting Sun
+                this.ctx.fillStyle = '#fef08a';
+                this.ctx.beginPath();
+                this.ctx.arc(950, 260, 75, 0, Math.PI * 2);
+                this.ctx.fill();
+
+                // Draw Background Parallax Layers
+                this.layers.forEach(layer => layer.draw(this.ctx));
+
+                // Draw Birds
+                this.ctx.fillStyle = '#292524';
+                this.birds.forEach(b => {
+                    const wing = Math.sin(b.wingAnim) * 8;
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(b.x, b.y);
+                    this.ctx.quadraticCurveTo(b.x - 8, b.y - 10 + wing, b.x - 16, b.y);
+                    this.ctx.quadraticCurveTo(b.x - 8, b.y + wing, b.x, b.y);
+                    this.ctx.quadraticCurveTo(b.x + 8, b.y - 10 + wing, b.x + 16, b.y);
+                    this.ctx.fill();
+                });
+
+                // Foreground Ground Texture
+                const groundGrad = this.ctx.createLinearGradient(0, this.groundY, 0, this.height);
+                groundGrad.addColorStop(0, '#15803d'); // Fresh green grass border
+                groundGrad.addColorStop(0.15, '#b45309'); // Savannah dirt
+                groundGrad.addColorStop(1, '#451a03'); // Dark soil depth
+                this.ctx.fillStyle = groundGrad;
+                this.ctx.fillRect(0, this.groundY, this.width, this.height - this.groundY);
+
+                // Top Grass Blades Line
+                this.ctx.fillStyle = '#22c55e';
+                this.ctx.fillRect(0, this.groundY, this.width, 4);
+
+                // Dust Particles
+                this.particles.forEach(p => p.draw(this.ctx));
+
+                // Obstacles
+                this.obstacles.forEach(obs => obs.draw(this.ctx));
+
+                // Lion Character
+                this.lion.draw(this.ctx);
+            }
+
+            loop() {
+                this.update();
+                this.render();
+                requestAnimationFrame(this.loop.bind(this));
+            }
+        }
+
+        // Initialize Game once DOM is loaded
+        window.onload = () => {
+            window.game = new Game();
+        };
+    </script>
+</body>
+</html>
